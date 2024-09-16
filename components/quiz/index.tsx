@@ -14,66 +14,27 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 
-const quizQuestions = [
-  {
-    "question": "What does the <a> tag in HTML stand for?",
-    "options": ["Anchor", "Article", "Address", "Align"],
-    "correctAnswer": "Anchor"
-  },
-  {
-    "question": "Which HTML attribute specifies an alternate text for an image if the image cannot be displayed?",
-    "options": ["src", "title", "alt", "href"],
-    "correctAnswer": "alt"
-  },
-  {
-    "question": "How do you create a numbered list in HTML?",
-    "options": ["<ul>", "<li>", "<ol>", "<list>"],
-    "correctAnswer": "<ol>"
-  },
-  {
-    "question": "Which tag is used to define a table in HTML?",
-    "options": ["<table>", "<tab>", "<tbl>", "<tr>"],
-    "correctAnswer": "<table>"
-  },
-  {
-    "question": "What is the correct HTML element for inserting a line break?",
-    "options": ["<lb>", "<break>", "<br>", "<hr>"],
-    "correctAnswer": "<br>"
-  },
-  {
-    "question": "Which CSS property is used to change the background color of an element?",
-    "options": ["color", "bgcolor", "background-color", "bg-color"],
-    "correctAnswer": "background-color"
-  },
-  {
-    "question": "How do you select an element with the class name 'example' in CSS?",
-    "options": [".example", "#example", "example", "*example"],
-    "correctAnswer": ".example"
-  },
-  {
-    "question": "What is the default value of the 'position' property in CSS?",
-    "options": ["static", "relative", "absolute", "fixed"],
-    "correctAnswer": "static"
-  },
-  {
-    "question": "Which CSS property controls the text size?",
-    "options": ["font-size", "text-size", "text-font", "font-style"],
-    "correctAnswer": "font-size"
-  },
-  {
-    "question": "How do you apply styles to multiple elements using the same CSS rule?",
-    "options": ["Separate selectors with a comma", "Use a single selector with multiple classes", "Use multiple <style> tags", "Apply inline styles to each element"],
-    "correctAnswer": "Separate selectors with a comma"
-  }
-];
+interface QuizQuestion {
+  correctAnswer: string;
+  question: string;
+  options: string[];
+}
 
-const QUIZ_TIME = 120;
+interface QuizComponentProps {
+  quizQuestions: QuizQuestion[];
+  timeLimit: number;
+  // retryQuiz: () => void;
+}
 
-export default function AnimatedQuiz() {
-  const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [answers, setAnswers] = useState(Array(quizQuestions.length).fill(""));
-  const [showResults, setShowResults] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(QUIZ_TIME);
+const QuizComponent: React.FC<QuizComponentProps> = ({
+  quizQuestions,
+  timeLimit,
+  // retryQuiz
+}) => {
+  const [currentQuestion, setCurrentQuestion] = useState<number>(0);
+  const [answers, setAnswers] = useState<string[]>([]);
+  const [showResults, setShowResults] = useState<boolean>(false);
+  const [timeLeft, setTimeLeft] = useState<number>(timeLimit);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -104,16 +65,24 @@ export default function AnimatedQuiz() {
     }
   };
 
-  const calculateScore = () => {
+  const calculateScore = (): number => {
     return answers.reduce((score, answer, index) => {
-      return answer === quizQuestions[index].correctAnswer ? score + 1 : score;
+      return answer === quizQuestions[index]?.correctAnswer ? score + 1 : score;
     }, 0);
   };
 
-  const progressPercentage = (timeLeft / QUIZ_TIME) * 100;
+  const progressPercentage = (timeLeft / timeLimit) * 100;
+
+  const getTimeClass = (timeLeft: number, totalTime: number): string => {
+    const percentageRemaining = (timeLeft / totalTime) * 100;
+    
+    if (percentageRemaining < 10) return '-red-500';
+    if (percentageRemaining < 25) return '-yellow-500';
+    return '-green-500';
+  };
 
   return (
-    <Card className="w-1/2 bg-white max-h-[calc(100vh-50px)] overflow-y-auto overflow-x-hidden">
+    <Card className="w-full md:w-1/2 lg:w-1/2 bg-white max-h-[calc(100vh-50px)] overflow-y-auto overflow-x-hidden">
       <CardHeader>
         <CardTitle className="text-2xl font-bold text-center">
           {!showResults ? "Quiz Time!" : "Quiz Results"}
@@ -121,11 +90,17 @@ export default function AnimatedQuiz() {
       </CardHeader>
       <CardContent>
         {!showResults && (
-          <Progress value={progressPercentage} className="mb-4" />
+          <>
+            <Progress value={progressPercentage} className="mb-4" />
+            <p className={`text-center mb-4 text${getTimeClass(timeLeft, timeLimit)}`}>
+              Time left:{" "}
+              {timeLeft < 60
+                ? `${timeLeft} seconds`
+                : `${Math.floor(timeLeft / 60)} minutes ${timeLeft % 60} seconds`}
+            </p>
+          </>
         )}
-        {!showResults && (
-          <p className="text-center mb-4">Time left: {timeLeft} seconds</p>
-        )}
+
         <AnimatePresence mode="wait">
           {!showResults ? (
             <motion.div
@@ -136,14 +111,14 @@ export default function AnimatedQuiz() {
               transition={{ type: "spring", stiffness: 260, damping: 20 }}
             >
               <h2 className="text-xl font-semibold mb-4">
-                {quizQuestions[currentQuestion].question}
+                {quizQuestions[currentQuestion]?.question}
               </h2>
               <RadioGroup
-                value={answers[currentQuestion]}
+                value={answers[currentQuestion] || ''}
                 onValueChange={handleAnswer}
                 className="space-y-2"
               >
-                {quizQuestions[currentQuestion].options.map((option, index) => (
+                {quizQuestions[currentQuestion]?.options.map((option, index) => (
                   <div key={index} className="flex items-center space-x-2">
                     <RadioGroupItem value={option} id={`option-${index}`} />
                     <Label htmlFor={`option-${index}`}>{option}</Label>
@@ -165,13 +140,7 @@ export default function AnimatedQuiz() {
                   <p className="font-medium">{q.question}</p>
                   <p className="text-sm">
                     Your answer:{" "}
-                    <span
-                      className={
-                        answers[index] === q.correctAnswer
-                          ? "text-green-600"
-                          : "text-red-600"
-                      }
-                    >
+                    <span className={answers[index] === q.correctAnswer ? "text-green-600" : "text-red-600"}>
                       {answers[index] || "Not answered"}
                     </span>
                   </p>
@@ -180,6 +149,9 @@ export default function AnimatedQuiz() {
                   </p>
                 </div>
               ))}
+              {/* <Button onClick={retryQuiz} className="w-full mt-4">
+                Retry
+              </Button> */}
             </motion.div>
           )}
         </AnimatePresence>
@@ -195,4 +167,6 @@ export default function AnimatedQuiz() {
       </CardFooter>
     </Card>
   );
-}
+};
+
+export default QuizComponent;
